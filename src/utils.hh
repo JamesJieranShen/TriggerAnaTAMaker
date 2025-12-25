@@ -2,19 +2,14 @@
 #include <cmath>
 #include <cstdint>
 
-inline bool
-is_cathode_opdet(int opdet_id) {
-  return opdet_id >= 40;
-}
-
-inline bool
-is_side_opdet(int opdet_id) {
-  return opdet_id < 40;
-}
-
 inline int
 channel_to_opdet(int channel) {
   return channel / 10;
+}
+
+inline float_t
+compute_mean(double sum, uint32_t n) {
+  return n > 0 ? static_cast<float_t>(sum) / n : 0.0f;
 }
 
 inline float_t

@@ -13,6 +13,12 @@ struct TriggerPrimitive {
   uint16_t samples_to_peak;
   uint32_t adc_integral;
   uint16_t adc_peak;
+
+  bool operator==(const TriggerPrimitive&) const = default;
+  auto operator<=>(const TriggerPrimitive& other) const {
+    return std::tie(time_start, channel) <=>
+           std::tie(other.time_start, other.channel);
+  }
 };
 
 struct TriggerPrimitiveReader {

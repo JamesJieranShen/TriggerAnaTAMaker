@@ -15,12 +15,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(PROJECT_ROOT_DIR ${CMAKE_SOURCE_DIR})
-add_compile_options(-Wall -Wextra -Werror)
+add_compile_options(-Wall -Wextra -Werror -Wno-error=unused-parameter)
 add_compile_options($<$<CONFIG:Release>:-march=native>)
 set(default_build_type "RelWithDebInfo")
 
 # Dependencies
-find_package(ROOT REQUIRED COMPONENTS Core RIO Tree Hist TreePlayer)
+find_package(ROOT REQUIRED COMPONENTS Core RIO Tree Hist TreePlayer Physics)
 # CLI11
 fetchcontent_declare(
   CLI11

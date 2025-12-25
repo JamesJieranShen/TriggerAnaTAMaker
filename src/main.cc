@@ -30,10 +30,7 @@ main(int argc, char** argv) {
   TTreeReaderValue<uint> event_reader(tp_tree_reader, "event");
   TriggerPrimitiveReader tp_reader(tp_tree_reader);
   // TriggerActivityMakerMTCA ta_maker(1, 10);
-  TriggerActivityMakerCluster ta_maker(15);
-  // 15sample = 240ns. According to
-  // https://docs.dunescience.org/cgi-bin/sso/RetrieveFile?docid=25316&filename=trigger-prelim.pdf&version=2
-  // this is the optimal value.
+  TriggerActivityMakerCluster ta_maker(15, 12, 8, 350);
 
   TFile fout(output_file.c_str(), "RECREATE");
   TTree out_tree("TriggerActivities", "Trigger Activities");

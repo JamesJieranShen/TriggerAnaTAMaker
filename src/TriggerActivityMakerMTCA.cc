@@ -1,7 +1,7 @@
 #include <TriggerActivityMakerMTCA.hh>
 #include <utils.hh>
 
-
+// TODO: Switch to using pmtinfo
 void
 compute_metrics(double sum2, double sum, int n, uint32_t& nhits, float_t& sadc,
                 float_t& adc_mean, float_t& adc_std, float_t& charge_balance) {
