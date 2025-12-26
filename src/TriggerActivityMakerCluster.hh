@@ -8,50 +8,50 @@
 #include <vector>
 
 struct TriggerActivityCluster : public TriggerActivity {
-  uint32_t time_start;
-  uint32_t time_end;
+  uint32_t time_start = std::numeric_limits<uint32_t>::max();
+  uint32_t time_end = std::numeric_limits<uint32_t>::min();
 
-  uint32_t n_opdets;
-  uint32_t n_tps;
-  uint32_t n_tps_max_opdets;
-  float_t sadc_sum;
-  float_t sadc_mean_opdets;
-  float_t sadc_mean_tps;
-  uint32_t sadc_max_tps;
-  float_t sadc_max_opdets;
-  float_t charge_balance_opdets;
-  float_t charge_balance_tps;
+  uint32_t n_opdets = 0;
+  uint32_t n_tps = 0;
+  uint32_t n_tps_max_opdets = 0;
+  float_t sadc_sum = 0;
+  float_t sadc_mean_opdets = 0;
+  float_t sadc_mean_tps = 0;
+  uint32_t sadc_max_tps = 0;
+  float_t sadc_max_opdets = 0;
+  float_t charge_balance_opdets = 0;
+  float_t charge_balance_tps = 0;
 
-  float_t tot_sum;
-  float_t tot_mean;
-  uint32_t tot_max;
-  float_t peak_sum;
-  float_t peak_mean;
-  uint32_t peak_max;
+  float_t tot_sum = 0;
+  float_t tot_mean = 0;
+  uint32_t tot_max = 0;
+  float_t peak_sum = 0;
+  float_t peak_mean = 0;
+  uint32_t peak_max = 0;
 
-  float_t t_extent;
-  float_t dt_max;
-  float_t dt_mean;
-  float_t dt_std;
+  float_t t_extent = 0;
+  float_t dt_max = 0;
+  float_t dt_mean = 0;
+  float_t dt_std = 0;
 
-  float_t x_extent;
-  float_t dx_max;
-  float_t dx_mean;
-  float_t dx_std;
+  float_t x_extent = 0;
+  float_t dx_max = 0;
+  float_t dx_mean = 0;
+  float_t dx_std = 0;
 
-  float_t y_extent;
-  float_t dy_max;
-  float_t dy_mean;
-  float_t dy_std;
-  float_t z_extent;
-  float_t dz_max;
-  float_t dz_mean;
-  float_t dz_std;
+  float_t y_extent = 0;
+  float_t dy_max = 0;
+  float_t dy_mean= 0;
+  float_t dy_std = 0;
+  float_t z_extent = 0;
+  float_t dz_max = 0;
+  float_t dz_mean = 0;
+  float_t dz_std = 0;
 
-  float_t dr_mean;
+  float_t dr_mean = 0;
 
-  float_t wall_fraction_opdets;
-  float_t wall_fraction_tps;
+  float_t wall_fraction_opdets = 0;
+  float_t wall_fraction_tps = 0;
 
   void LinkTree(TTree& tree, const std::string& prefix = "") override {
     tree.Branch((prefix + "time_start").c_str(), &time_start);

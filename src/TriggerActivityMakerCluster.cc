@@ -157,11 +157,6 @@ TPBufferCluster::makeTriggerActivity(
     const std::vector<TriggerPrimitive>& cluster_tps) const {
   TriggerActivityCluster activity;
   activity.n_tps = cluster_tps.size();
-  activity.time_start = std::numeric_limits<uint32_t>::max();
-  activity.time_end = std::numeric_limits<uint32_t>::min();
-  activity.tot_sum = 0.0;
-  activity.sadc_sum = 0;
-  activity.sadc_max_tps = 0;
   activity.dr_mean = compute_mean_distance(cluster_tps);
   std::map<uint32_t, int64_t> opdet_sadcs;
   std::map<uint32_t, uint32_t> opdet_ntps;
