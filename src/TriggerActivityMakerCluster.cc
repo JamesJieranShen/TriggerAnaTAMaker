@@ -2,12 +2,13 @@
 
 #include "PMTInfo.hh"
 #include "utils.hh"
+
 #include <TVector3.h>
 
 // assumes tps are sorted by time_start.
 std::vector<std::vector<TriggerPrimitive>>
 split_on_timediff(const std::vector<TriggerPrimitive>& tps,
-                  int64_t max_hit_time_diff) {
+                  int64_t max_cluster_time, int64_t max_hit_time_diff) {
   std::vector<std::vector<TriggerPrimitive>> clusters;
   if (tps.empty()) {
     return clusters;
@@ -15,14 +16,19 @@ split_on_timediff(const std::vector<TriggerPrimitive>& tps,
   std::vector<TriggerPrimitive> current_cluster;
   current_cluster.push_back(tps.at(0));
   for (size_t i = 1; i < tps.size(); ++i) {
-    if (static_cast<int64_t>(tps.at(i).time_start - tps.at(i - 1).time_start) <=
-        max_hit_time_diff) {
-      current_cluster.push_back(tps.at(i));
-    } else {
+    if (
+        // The current TP is too late, exceeding max time diff
+        (static_cast<int64_t>(tps.at(i).time_start - tps.at(i - 1).time_start) >
+         max_hit_time_diff) ||
+        // The current cluster will exceed max cluster time with the addition of
+        // the current TP
+        (static_cast<int64_t>(tps.at(i).time_start -
+                              current_cluster.front().time_start) >
+         max_cluster_time)) {
       clusters.push_back(current_cluster);
       current_cluster.clear();
-      current_cluster.push_back(tps.at(i));
     }
+    current_cluster.push_back(tps.at(i));
   }
   if (!current_cluster.empty()) {
     clusters.push_back(current_cluster);
@@ -30,14 +36,14 @@ split_on_timediff(const std::vector<TriggerPrimitive>& tps,
   return clusters;
 }
 
-void
+std::vector<TriggerPrimitive>
 filter_by_distance(std::vector<TriggerPrimitive>& cluster_tps,
-                   float_t max_hit_distance) {
+                   float_t max_hit_distance, int min_neighbors) {
   // removes tps from the cluster_tps list if there are no neighbors within
   // max_hit_distance.
   const PMTInfo& pmt_info = PMTInfo::Instance();
-  int min_neighbors = 1; // NOTE: if needed make this configurable.
   std::vector<TriggerPrimitive> filtered_tps;
+  std::vector<TriggerPrimitive> removed_tps;
   for (const TriggerPrimitive& curr_tp : cluster_tps) {
     int curr_opdet_id = channel_to_opdet(curr_tp.channel);
     TVector3 curr_pos = pmt_info.GetPositionTVec(curr_opdet_id);
@@ -57,9 +63,12 @@ filter_by_distance(std::vector<TriggerPrimitive>& cluster_tps,
     } // end for other_tp
     if (neighbor_count >= min_neighbors) {
       filtered_tps.push_back(curr_tp);
+    } else {
+      removed_tps.push_back(curr_tp);
     }
   } // end for curr_tp
   std::swap(cluster_tps, filtered_tps);
+  return removed_tps;
 }
 
 template <typename T>
@@ -72,7 +81,8 @@ compute_metrics(std::vector<T> vals, float_t& extent_val, float_t& max_val,
     return;
   }
   std::sort(vals.begin(), vals.end());
-  extent_val = static_cast<float_t>(vals.back()) - static_cast<float_t>(vals.front());
+  extent_val =
+      static_cast<float_t>(vals.back()) - static_cast<float_t>(vals.front());
   float_t sum_deltas = 0;
   max_val = 0;
   for (size_t i = 1; i < vals.size(); ++i) {
@@ -109,7 +119,7 @@ compute_mean_distance(const std::vector<TriggerPrimitive>& tps) {
 
 void
 TPBufferCluster::expire(uint64_t current_time) {
-  int64_t expire_time = current_time - m_maxClusterTime;
+  int64_t expire_time = current_time - m_bufLength;
   while (!m_buffer.empty() &&
          static_cast<int64_t>(m_buffer.top().time_start) < expire_time) {
     m_buffer.pop();
@@ -124,26 +134,35 @@ TPBufferCluster::add(const TriggerPrimitive& tp) {
 }
 void
 TPBufferCluster::formClusters(std::vector<TriggerActivityCluster>& output,
+                              int64_t max_cluster_time,
                               int64_t max_hit_time_diff, int64_t min_nhits,
-                              float_t max_hit_distance) const {
+                              float_t max_hit_distance, int64_t min_neighbors, bool last_call) {
   if (m_buffer.empty()) return;
   std::vector<TriggerPrimitive> tps;
-  TPPriorityQueueCluster temp_queue = m_buffer;
-  while (!temp_queue.empty()) {
-    tps.push_back(temp_queue.top());
-    temp_queue.pop();
+  while (!m_buffer.empty()) {
+    tps.push_back(m_buffer.top());
+    m_buffer.pop();
   }
   std::sort(tps.begin(), tps.end(),
             [](const TriggerPrimitive& a, const TriggerPrimitive& b) {
               return a.time_start < b.time_start;
             });
   std::vector<std::vector<TriggerPrimitive>> time_clusters =
-      split_on_timediff(tps, max_hit_time_diff);
+      split_on_timediff(tps, max_cluster_time, max_hit_time_diff);
+  if (!last_call) {
+    // keep the last cluster in the buffer to be processed with future tps.
+    std::vector<TriggerPrimitive> last_cluster = time_clusters.back();
+    time_clusters.pop_back();
+    for (const TriggerPrimitive& tp : last_cluster) {
+      m_buffer.push(tp);
+    }
+  }
   for (std::vector<TriggerPrimitive>& cluster_tps : time_clusters) {
+    // TODO: gather all removed TPs and add back to buffer?
     if (cluster_tps.size() < static_cast<size_t>(min_nhits)) {
       continue;
     }
-    filter_by_distance(cluster_tps, max_hit_distance);
+    filter_by_distance(cluster_tps, max_hit_distance, min_neighbors);
     if (cluster_tps.size() < static_cast<size_t>(min_nhits)) {
       continue;
     }
@@ -206,6 +225,7 @@ TPBufferCluster::makeTriggerActivity(
           : wall_tp_count / static_cast<float_t>(activity.n_tps);
   double total_sadc2_opdets = 0.0;
   uint32_t wall_opdet_count = 0;
+  float_t wall_sadc_sum = 0.0f;
   activity.n_tps_max_opdets = 0;
   for (auto const& [opdet_id, ntps] : opdet_ntps) {
     activity.n_tps_max_opdets = std::max(activity.n_tps_max_opdets, ntps);
@@ -216,6 +236,7 @@ TPBufferCluster::makeTriggerActivity(
     total_sadc2_opdets += sadc_d * sadc_d;
     if (pmt_info.is_side_opdet(opdet_id)) {
       wall_opdet_count += 1;
+      wall_sadc_sum += static_cast<float_t>(sadc);
     }
     activity.sadc_max_opdets =
         std::max(activity.sadc_max_opdets, static_cast<float_t>(sadc));
@@ -224,6 +245,8 @@ TPBufferCluster::makeTriggerActivity(
       activity.n_opdets == 0
           ? 0.0
           : wall_opdet_count / static_cast<float_t>(activity.n_opdets);
+  activity.wall_fraction_sadc =
+      activity.sadc_sum == 0.0f ? 0.0f : wall_sadc_sum / activity.sadc_sum;
   activity.sadc_mean_opdets =
       compute_mean(activity.sadc_sum, activity.n_opdets);
   activity.sadc_mean_tps = compute_mean(activity.sadc_sum, activity.n_tps);

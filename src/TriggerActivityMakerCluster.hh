@@ -41,7 +41,7 @@ struct TriggerActivityCluster : public TriggerActivity {
 
   float_t y_extent = 0;
   float_t dy_max = 0;
-  float_t dy_mean= 0;
+  float_t dy_mean = 0;
   float_t dy_std = 0;
   float_t z_extent = 0;
   float_t dz_max = 0;
@@ -52,6 +52,7 @@ struct TriggerActivityCluster : public TriggerActivity {
 
   float_t wall_fraction_opdets = 0;
   float_t wall_fraction_tps = 0;
+  float_t wall_fraction_sadc = 0;
 
   void LinkTree(TTree& tree, const std::string& prefix = "") override {
     tree.Branch((prefix + "time_start").c_str(), &time_start);
@@ -64,7 +65,8 @@ struct TriggerActivityCluster : public TriggerActivity {
     tree.Branch((prefix + "sadc_mean_tps").c_str(), &sadc_mean_tps);
     tree.Branch((prefix + "sadc_max_tps").c_str(), &sadc_max_tps);
     tree.Branch((prefix + "sadc_max_opdets").c_str(), &sadc_max_opdets);
-    tree.Branch((prefix + "charge_balance_opdets").c_str(), &charge_balance_opdets);
+    tree.Branch((prefix + "charge_balance_opdets").c_str(),
+                &charge_balance_opdets);
     tree.Branch((prefix + "charge_balance_tps").c_str(), &charge_balance_tps);
     tree.Branch((prefix + "tot_sum").c_str(), &tot_sum);
     tree.Branch((prefix + "tot_mean").c_str(), &tot_mean);
@@ -89,8 +91,10 @@ struct TriggerActivityCluster : public TriggerActivity {
     tree.Branch((prefix + "dz_mean").c_str(), &dz_mean);
     tree.Branch((prefix + "dz_std").c_str(), &dz_std);
     tree.Branch((prefix + "dr_mean").c_str(), &dr_mean);
-    tree.Branch((prefix + "wall_fraction_opdets").c_str(), &wall_fraction_opdets);
+    tree.Branch((prefix + "wall_fraction_opdets").c_str(),
+                &wall_fraction_opdets);
     tree.Branch((prefix + "wall_fraction_tps").c_str(), &wall_fraction_tps);
+    tree.Branch((prefix + "wall_fraction_sadc").c_str(), &wall_fraction_sadc);
   }
 };
 
@@ -106,8 +110,8 @@ typedef std::priority_queue<TriggerPrimitive, std::vector<TriggerPrimitive>,
     TPPriorityQueueCluster;
 
 struct TPBufferCluster {
-  TPBufferCluster(uint64_t max_cluster_time)
-      : m_maxClusterTime(max_cluster_time), m_currentTime(0) {}
+  TPBufferCluster(uint64_t buffer_length)
+      : m_bufLength(buffer_length), m_currentTime(0) {}
 
   size_t size() const { return m_buffer.size(); }
   uint64_t currentTime() const { return m_currentTime; }
@@ -121,13 +125,14 @@ struct TPBufferCluster {
   void expire(uint64_t current_time);
 
   void formClusters(std::vector<TriggerActivityCluster>&,
-                    int64_t max_hit_time_diff, int64_t min_nhits,
-                    float_t max_hit_distance) const;
+                    int64_t max_cluster_time, int64_t max_hit_time_diff,
+                    int64_t min_nhits, float_t max_hit_distance,
+                    int64_t min_neighbors, bool last_call = false);
 
   TriggerActivityCluster
   makeTriggerActivity(const std::vector<TriggerPrimitive>& cluster_tps) const;
 
-  uint64_t m_maxClusterTime;
+  uint64_t m_bufLength;
   uint64_t m_currentTime;
   TPPriorityQueueCluster m_buffer;
 };
@@ -137,29 +142,35 @@ class TriggerActivityMakerCluster
 public:
   TriggerActivityMakerCluster(int64_t max_cluster_time,
                               int64_t max_hit_time_diff, int64_t min_nhits,
-                              float_t max_hit_distance)
-      : m_tpBuffer(max_cluster_time), m_maxHitTimeDiff(max_hit_time_diff),
-        m_minNhits(min_nhits), m_maxHitDistance(max_hit_distance) {}
+                              float_t max_hit_distance,
+                              int64_t min_neighbors = 1)
+      : m_tpBuffer(6250), m_maxClusterTime(max_cluster_time),
+        m_maxHitTimeDiff(max_hit_time_diff), m_minNhits(min_nhits),
+        m_maxHitDistance(max_hit_distance), m_minNeighbors(min_neighbors) {}
 
   void operator()(const TriggerPrimitive& input_tp,
                   std::vector<TriggerActivityCluster>& output_ta) override {
     if (input_tp.time_start > m_tpBuffer.currentTime()) {
-      m_tpBuffer.formClusters(output_ta, m_maxHitTimeDiff, m_minNhits,
-                              m_maxHitDistance);
+      m_tpBuffer.formClusters(output_ta, m_maxClusterTime, m_maxHitTimeDiff,
+                              m_minNhits, m_maxHitDistance, m_minNeighbors);
     }
     m_tpBuffer.add(input_tp);
   }
   void flush(std::vector<TriggerActivityCluster>& output_ta) override {
     if (m_tpBuffer.size() > 0) {
-      m_tpBuffer.formClusters(output_ta, m_maxHitTimeDiff, m_minNhits,
-                              m_maxHitDistance);
+      // last call, flush everything
+      m_tpBuffer.formClusters(output_ta, m_maxClusterTime, m_maxHitTimeDiff,
+                              m_minNhits, m_maxHitDistance, m_minNeighbors,
+                              true);
     }
     m_tpBuffer.clear();
   }
 
 private:
   TPBufferCluster m_tpBuffer;
+  int64_t m_maxClusterTime;
   int64_t m_maxHitTimeDiff;
   int64_t m_minNhits;
   float_t m_maxHitDistance;
+  int64_t m_minNeighbors;
 };

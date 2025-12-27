@@ -1,5 +1,5 @@
 BasedOnStyle: LLVM
-# ColumnLimit: 120
+ColumnLimit: 80
 PointerAlignment: Left
 IncludeBlocks: Regroup
 AllowShortIfStatementsOnASingleLine: WithoutElse
