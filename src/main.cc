@@ -5,6 +5,7 @@
 
 #include <CLI/CLI.hpp>
 #include <TFile.h>
+#include <TChain.h>
 #include <TTreeReader.h>
 #include <iostream>
 #include <string>
@@ -25,8 +26,11 @@ main(int argc, char** argv) {
   std::cout << "Tree Name: " << tree_name << std::endl;
   std::cout << "Output File: " << output_file << std::endl;
 
-  TFile fin(input_file.c_str(), "READ");
-  TTreeReader tp_tree_reader(tree_name.c_str(), &fin);
+  // TFile fin(input_file.c_str(), "READ");
+  // TTreeReader tp_tree_reader(tree_name.c_str(), &fin);
+  TChain *theChain = new TChain(tree_name.c_str());
+  theChain->Add(input_file.c_str());
+  TTreeReader tp_tree_reader(theChain);
   TTreeReaderValue<uint> event_reader(tp_tree_reader, "event");
   TTreeReaderValue<uint> subrun_reader(tp_tree_reader, "subrun");
   TTreeReaderValue<uint> run_reader(tp_tree_reader, "run");
