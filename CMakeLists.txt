@@ -11,11 +11,11 @@ execute_process(
 )
 
 # Build Options
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(PROJECT_ROOT_DIR ${CMAKE_SOURCE_DIR})
-add_compile_options(-Wall -Wextra -Werror -Wno-error=unused-parameter)
+add_compile_options(-Wall -Wextra -Wno-error=unused-parameter)
 add_compile_options($<$<CONFIG:Release>:-march=native>)
 set(default_build_type "RelWithDebInfo")
 

@@ -26,11 +26,26 @@ struct TriggerPrimitive {
   int bt_mctruth_block_id;
   std::string bt_mctruth_gen_name;
 
-  bool operator==(const TriggerPrimitive&) const = default;
-  auto operator<=>(const TriggerPrimitive& other) const {
-    return std::tie(time_start, channel) <=>
-           std::tie(other.time_start, other.channel);
+  bool operator==(const TriggerPrimitive& other) const noexcept {
+    return std::tie(version, flag, detid,
+                    channel, samples_over_threshold, time_start,
+                    samples_to_peak, adc_integral, adc_peak)
+        == std::tie(other.version, other.flag, other.detid,
+                    other.channel, other.samples_over_threshold, other.time_start,
+                    other.samples_to_peak, other.adc_integral, other.adc_peak);
   }
+
+  bool operator!=(const TriggerPrimitive& other) const noexcept {
+    return !(*this == other);
+  }
+
+  bool operator<(const TriggerPrimitive& other) const noexcept {
+    return std::tie(time_start, channel) < std::tie(other.time_start, other.channel);
+  }
+
+  bool operator>(const TriggerPrimitive& other) const noexcept { return other < *this; }
+  bool operator<=(const TriggerPrimitive& other) const noexcept { return !(other < *this); }
+  bool operator>=(const TriggerPrimitive& other) const noexcept { return !(*this < other); }
 };
 
 struct TriggerPrimitiveReader {
