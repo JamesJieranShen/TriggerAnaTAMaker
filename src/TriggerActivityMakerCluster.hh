@@ -55,6 +55,7 @@ struct TriggerActivityCluster : public TriggerActivity {
   float_t wall_fraction_sadc = 0;
 
   void LinkTree(TTree& tree, const std::string& prefix = "") override {
+    LinkTreeBackTracker(tree, prefix);
     tree.Branch((prefix + "time_start").c_str(), &time_start);
     tree.Branch((prefix + "time_end").c_str(), &time_end);
     tree.Branch((prefix + "n_opdets").c_str(), &n_opdets);

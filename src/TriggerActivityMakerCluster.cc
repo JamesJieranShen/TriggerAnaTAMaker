@@ -168,6 +168,7 @@ TPBufferCluster::formClusters(std::vector<TriggerActivityCluster>& output,
     }
     std::sort(cluster_tps.begin(), cluster_tps.end());
     output.push_back(makeTriggerActivity(cluster_tps));
+    output.back().BackTrack(cluster_tps);
   }
 }
 
