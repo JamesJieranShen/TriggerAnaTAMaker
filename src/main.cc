@@ -7,27 +7,50 @@
 #include <TFile.h>
 #include <TChain.h>
 #include <TTreeReader.h>
+#include <TObjString.h>
 #include <iostream>
 #include <string>
+#include <filesystem>
+#include <nlohmann/json.hpp>
 
 int
 main(int argc, char** argv) {
   CLI::App parser{
       "Toy Trigger Activity Maker, using TriggerAnaTree as an input."};
-  std::string input_file, output_file, tree_name;
-  parser.add_option("--input,-i", input_file, "Input TriggerAnaTree file")
-      ->required();
-  parser.add_option("--tree", tree_name, "Trigger Activity Tree Name")
-      ->required();
-  parser.add_option("--output,-o", output_file, "Output file")->required();
+  std::string input_file, output_file, cfg, tree_name;
+  parser.add_option("--config", cfg, "JSON Config string or filename.")->required();
+  parser.add_option("--input,-i", input_file, "Input TriggerAnaTree file");
+  parser.add_option("--tree", tree_name, "Trigger Activity Tree Name");
+  parser.add_option("--output,-o", output_file, "Output file");
   CLI11_PARSE(parser, argc, argv);
+
+  nlohmann::json parsed_cfg;
+  if (std::filesystem::exists(cfg) && std::filesystem::is_regular_file(cfg)) {
+    std::ifstream cfg_file(cfg);
+    if (!cfg_file) throw std::runtime_error("Could not open config file: " + cfg);
+    parsed_cfg = nlohmann::json::parse(cfg_file, nullptr, true, true);
+  }
+  else {
+    parsed_cfg = nlohmann::json::parse(cfg, nullptr, true, true);
+  }
+  if (input_file.empty()) {
+    input_file = parsed_cfg.value("input", "");
+  }
+  if (tree_name.empty()) {
+    tree_name = parsed_cfg.value("tree", "");
+  }
+  if (output_file.empty()) {
+    output_file = parsed_cfg.value("output", "");
+  }
+  if (input_file.empty()) throw std::runtime_error("Input file not specified.");
+  if (tree_name.empty()) throw std::runtime_error("Tree name not specified.");
+  if (output_file.empty()) throw std::runtime_error("Output file not specified.");
 
   std::cout << "Input File: " << input_file << std::endl;
   std::cout << "Tree Name: " << tree_name << std::endl;
   std::cout << "Output File: " << output_file << std::endl;
-
-  // TFile fin(input_file.c_str(), "READ");
-  // TTreeReader tp_tree_reader(tree_name.c_str(), &fin);
+  
+  std::cout << "Config:\n" << parsed_cfg.dump(2) << std::endl;
   TChain *theChain = new TChain(tree_name.c_str());
   theChain->Add(input_file.c_str());
   TTreeReader tp_tree_reader(theChain);
@@ -36,7 +59,12 @@ main(int argc, char** argv) {
   TTreeReaderValue<uint> run_reader(tp_tree_reader, "run");
   TriggerPrimitiveReader tp_reader(tp_tree_reader);
   // TriggerActivityMakerMTCA ta_maker(1, 10);
-  TriggerActivityMakerCluster ta_maker(32, 23, 11, 727, 2);
+  nlohmann::json ta_cfg = parsed_cfg["TAMaker"];
+  if (ta_cfg["tool_type"] != "cluster") {
+    throw std::runtime_error("Only TriggerActivityMakerCluster is supported in this example.");
+  }
+  // TriggerActivityMakerCluster ta_maker(32, 23, 11, 727, 2);
+  TriggerActivityMakerCluster ta_maker(ta_cfg["config"]);
 
   TFile fout(output_file.c_str(), "RECREATE");
   TTree out_tree("TriggerActivities", "Trigger Activities");
@@ -106,6 +134,12 @@ main(int argc, char** argv) {
     out_tree.Fill();
   }
   out_tree.Write();
+
+  nlohmann::json provenance = parsed_cfg;
+  provenance["input_file"] = input_file;
+  provenance["tree_name"] = tree_name;
+  TObjString provenance_str = provenance.dump().c_str();
+  provenance_str.Write("provenance",  TObject::kOverwrite);
   fout.Close();
 
   return 0;

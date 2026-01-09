@@ -21,6 +21,14 @@ set(default_build_type "RelWithDebInfo")
 
 # Dependencies
 find_package(ROOT REQUIRED COMPONENTS Core RIO Tree Hist TreePlayer Physics)
+
+# nlohmann json
+fetchcontent_declare(
+  json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG        v3.12.0
+)
+fetchcontent_makeavailable(json)
 # CLI11
 fetchcontent_declare(
   CLI11

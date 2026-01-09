@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <queue>
 #include <sys/types.h>
 #include <vector>
@@ -148,6 +149,10 @@ public:
       : m_tpBuffer(6250), m_maxClusterTime(max_cluster_time),
         m_maxHitTimeDiff(max_hit_time_diff), m_minNhits(min_nhits),
         m_maxHitDistance(max_hit_distance), m_minNeighbors(min_neighbors) {}
+  TriggerActivityMakerCluster(const nlohmann::json& j)
+      : TriggerActivityMakerCluster(
+            j["max_cluster_time"], j["max_hit_time_diff"], j["min_nhits"],
+            j["max_hit_distance"], j.value("min_neighbors", 1)) {}
 
   void operator()(const TriggerPrimitive& input_tp,
                   std::vector<TriggerActivityCluster>& output_ta) override {

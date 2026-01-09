@@ -1,0 +1,15 @@
+{
+  "input": "/home/jierans/work/dune/triggersim/pds_tpg/data/gammas_5k.ntuple.root",
+  "tree": "triggerAna/TriggerPrimitives/tpmakerPDSLessSimpleThreshold__TriggerSimAna",
+  "output": "test.root",
+  "TAMaker": {
+    "tool_type": "cluster",
+    "config": {
+      "max_cluster_time": 32,
+      "max_hit_time_diff": 23,
+      "min_nhits": 11,
+      "max_hit_distance": 727,
+      "min_neighbors": 2
+    }
+  }
+}
