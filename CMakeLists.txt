@@ -22,13 +22,25 @@ set(default_build_type "RelWithDebInfo")
 # Dependencies
 find_package(ROOT REQUIRED COMPONENTS Core RIO Tree Hist TreePlayer Physics)
 
-# nlohmann json
-fetchcontent_declare(
-  json
-  GIT_REPOSITORY https://github.com/nlohmann/json.git
-  GIT_TAG        v3.12.0
-)
-fetchcontent_makeavailable(json)
+# If somebody (system package or another dependency) already provided it, reuse it.
+if(NOT TARGET nlohmann_json::nlohmann_json)
+  # Prefer an installed package if available (avoids duplicate target definitions).
+  find_package(nlohmann_json 3.12.0 CONFIG QUIET)
+endif()
+
+if(NOT TARGET nlohmann_json::nlohmann_json)
+  # Optional: reduce side effects from the subproject
+  set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+  set(JSON_Install    OFF CACHE BOOL "" FORCE)  # suggested by upstream docs :contentReference[oaicite:1]{index=1}
+
+  FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.12.0
+  )
+  FetchContent_MakeAvailable(nlohmann_json)
+endif()
+
 # CLI11
 fetchcontent_declare(
   CLI11

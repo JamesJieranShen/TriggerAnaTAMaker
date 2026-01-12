@@ -46,11 +46,11 @@ main(int argc, char** argv) {
   if (tree_name.empty()) throw std::runtime_error("Tree name not specified.");
   if (output_file.empty()) throw std::runtime_error("Output file not specified.");
 
+  
+  std::cout << "Config:\n" << parsed_cfg.dump(2) << std::endl;
   std::cout << "Input File: " << input_file << std::endl;
   std::cout << "Tree Name: " << tree_name << std::endl;
   std::cout << "Output File: " << output_file << std::endl;
-  
-  std::cout << "Config:\n" << parsed_cfg.dump(2) << std::endl;
   TChain *theChain = new TChain(tree_name.c_str());
   theChain->Add(input_file.c_str());
   TTreeReader tp_tree_reader(theChain);

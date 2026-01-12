@@ -1,6 +1,6 @@
 #include "TriggerActivityMakerCluster.hh"
 
-#include "PMTInfo.hh"
+#include "PMTINFO_1x8x14.hh"
 #include "utils.hh"
 
 #include <TVector3.h>
