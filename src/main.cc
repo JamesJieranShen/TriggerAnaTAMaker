@@ -128,6 +128,7 @@ main(int argc, char** argv) {
   }
   ta_maker.flush(output_tas);
   std::cout << "Writing TAs for event " << event_counter << std::endl;
+  std::cout << "  Number of TPs: " << tps_in_event.size() << std::endl;
   std::cout << "  Number of TAs: " << output_tas.size() << std::endl;
   for (const auto& ta : output_tas) {
     ta_buf = ta;

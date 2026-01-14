@@ -5,7 +5,12 @@
 
 #include <TVector3.h>
 
-// assumes tps are sorted by time_start.
+inline uint64_t
+peak_time(const TriggerPrimitive& tp) {
+  return tp.time_start + tp.samples_to_peak;
+}
+
+// assumes tps are sorted by peak time.
 std::vector<std::vector<TriggerPrimitive>>
 split_on_timediff(const std::vector<TriggerPrimitive>& tps,
                   int64_t max_cluster_time, int64_t max_hit_time_diff) {
@@ -18,12 +23,12 @@ split_on_timediff(const std::vector<TriggerPrimitive>& tps,
   for (size_t i = 1; i < tps.size(); ++i) {
     if (
         // The current TP is too late, exceeding max time diff
-        (static_cast<int64_t>(tps.at(i).time_start - tps.at(i - 1).time_start) >
+        (static_cast<int64_t>(peak_time(tps.at(i)) - peak_time(tps.at(i - 1))) >
          max_hit_time_diff) ||
         // The current cluster will exceed max cluster time with the addition of
         // the current TP
-        (static_cast<int64_t>(tps.at(i).time_start -
-                              current_cluster.front().time_start) >
+        (static_cast<int64_t>(peak_time(tps.at(i)) -
+                              peak_time(current_cluster.front())) >
          max_cluster_time)) {
       clusters.push_back(current_cluster);
       current_cluster.clear();
@@ -97,7 +102,6 @@ compute_metrics(std::vector<T> vals, float_t& extent_val, float_t& max_val,
 
 float_t
 compute_mean_distance(const std::vector<TriggerPrimitive>& tps) {
-  // assumes tps are sorted by time_start.
   if (tps.size() < 2) {
     return 0.0f;
   }
@@ -128,7 +132,6 @@ TPBufferCluster::expire(uint64_t current_time) {
 
 void
 TPBufferCluster::add(const TriggerPrimitive& tp) {
-  m_currentTime = tp.time_start;
   expire(tp.time_start);
   m_buffer.push(tp);
 }
@@ -136,7 +139,8 @@ void
 TPBufferCluster::formClusters(std::vector<TriggerActivityCluster>& output,
                               int64_t max_cluster_time,
                               int64_t max_hit_time_diff, int64_t min_nhits,
-                              float_t max_hit_distance, int64_t min_neighbors, bool last_call) {
+                              float_t max_hit_distance, int64_t min_neighbors,
+                              bool last_call) {
   if (m_buffer.empty()) return;
   std::vector<TriggerPrimitive> tps;
   while (!m_buffer.empty()) {
@@ -145,7 +149,7 @@ TPBufferCluster::formClusters(std::vector<TriggerActivityCluster>& output,
   }
   std::sort(tps.begin(), tps.end(),
             [](const TriggerPrimitive& a, const TriggerPrimitive& b) {
-              return a.time_start < b.time_start;
+              return peak_time(a) < peak_time(b);
             });
   std::vector<std::vector<TriggerPrimitive>> time_clusters =
       split_on_timediff(tps, max_cluster_time, max_hit_time_diff);

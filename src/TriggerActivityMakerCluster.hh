@@ -103,7 +103,8 @@ struct TriggerActivityCluster : public TriggerActivity {
 // Pablo's Cluster uses peak time, I think. Let's stick with time_start for now
 struct TPCompareCluster {
   bool operator()(TriggerPrimitive const& a, TriggerPrimitive const& b) const {
-    return a.time_start > b.time_start;
+    return (a.time_start + a.samples_to_peak) >
+           (b.time_start + b.samples_to_peak);
   }
 };
 
@@ -112,16 +113,18 @@ typedef std::priority_queue<TriggerPrimitive, std::vector<TriggerPrimitive>,
     TPPriorityQueueCluster;
 
 struct TPBufferCluster {
-  TPBufferCluster(uint64_t buffer_length)
-      : m_bufLength(buffer_length), m_currentTime(0) {}
+  TPBufferCluster(uint64_t buffer_length) : m_bufLength(buffer_length) {}
 
   size_t size() const { return m_buffer.size(); }
-  uint64_t currentTime() const { return m_currentTime; }
+  uint64_t currentTime() const {
+    return m_buffer.empty()
+               ? 0
+               : m_buffer.top().time_start + m_buffer.top().samples_to_peak;
+  }
 
   void clear() {
     TPPriorityQueueCluster empty;
     m_buffer.swap(empty);
-    m_currentTime = 0;
   }
   void add(const TriggerPrimitive& tp);
   void expire(uint64_t current_time);
@@ -135,7 +138,6 @@ struct TPBufferCluster {
   makeTriggerActivity(const std::vector<TriggerPrimitive>& cluster_tps) const;
 
   uint64_t m_bufLength;
-  uint64_t m_currentTime;
   TPPriorityQueueCluster m_buffer;
 };
 
