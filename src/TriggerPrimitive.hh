@@ -27,11 +27,10 @@ struct TriggerPrimitive {
   std::string bt_mctruth_gen_name;
 
   bool operator==(const TriggerPrimitive& other) const noexcept {
-    return std::tie(version, flag, detid,
-                    channel, samples_over_threshold, time_start,
-                    samples_to_peak, adc_integral, adc_peak)
-        == std::tie(other.version, other.flag, other.detid,
-                    other.channel, other.samples_over_threshold, other.time_start,
+    return std::tie(version, flag, detid, channel, samples_over_threshold,
+                    time_start, samples_to_peak, adc_integral, adc_peak) ==
+           std::tie(other.version, other.flag, other.detid, other.channel,
+                    other.samples_over_threshold, other.time_start,
                     other.samples_to_peak, other.adc_integral, other.adc_peak);
   }
 
@@ -40,12 +39,19 @@ struct TriggerPrimitive {
   }
 
   bool operator<(const TriggerPrimitive& other) const noexcept {
-    return std::tie(time_start, channel) < std::tie(other.time_start, other.channel);
+    return std::make_tuple(time_start + samples_to_peak, channel) <
+           std::make_tuple(other.time_start + other.samples_to_peak, other.channel);
   }
 
-  bool operator>(const TriggerPrimitive& other) const noexcept { return other < *this; }
-  bool operator<=(const TriggerPrimitive& other) const noexcept { return !(other < *this); }
-  bool operator>=(const TriggerPrimitive& other) const noexcept { return !(*this < other); }
+  bool operator>(const TriggerPrimitive& other) const noexcept {
+    return other < *this;
+  }
+  bool operator<=(const TriggerPrimitive& other) const noexcept {
+    return !(other < *this);
+  }
+  bool operator>=(const TriggerPrimitive& other) const noexcept {
+    return !(*this < other);
+  }
 };
 
 struct TriggerPrimitiveReader {

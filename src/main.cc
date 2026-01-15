@@ -4,21 +4,22 @@
 #include "TriggerPrimitive.hh"
 
 #include <CLI/CLI.hpp>
-#include <TFile.h>
 #include <TChain.h>
-#include <TTreeReader.h>
+#include <TFile.h>
 #include <TObjString.h>
-#include <iostream>
-#include <string>
+#include <TTreeReader.h>
 #include <filesystem>
+#include <iostream>
 #include <nlohmann/json.hpp>
+#include <string>
 
 int
 main(int argc, char** argv) {
   CLI::App parser{
       "Toy Trigger Activity Maker, using TriggerAnaTree as an input."};
   std::string input_file, output_file, cfg, tree_name;
-  parser.add_option("--config", cfg, "JSON Config string or filename.")->required();
+  parser.add_option("--config", cfg, "JSON Config string or filename.")
+      ->required();
   parser.add_option("--input,-i", input_file, "Input TriggerAnaTree file");
   parser.add_option("--tree", tree_name, "Trigger Activity Tree Name");
   parser.add_option("--output,-o", output_file, "Output file");
@@ -27,10 +28,10 @@ main(int argc, char** argv) {
   nlohmann::json parsed_cfg;
   if (std::filesystem::exists(cfg) && std::filesystem::is_regular_file(cfg)) {
     std::ifstream cfg_file(cfg);
-    if (!cfg_file) throw std::runtime_error("Could not open config file: " + cfg);
+    if (!cfg_file)
+      throw std::runtime_error("Could not open config file: " + cfg);
     parsed_cfg = nlohmann::json::parse(cfg_file, nullptr, true, true);
-  }
-  else {
+  } else {
     parsed_cfg = nlohmann::json::parse(cfg, nullptr, true, true);
   }
   if (input_file.empty()) {
@@ -44,14 +45,14 @@ main(int argc, char** argv) {
   }
   if (input_file.empty()) throw std::runtime_error("Input file not specified.");
   if (tree_name.empty()) throw std::runtime_error("Tree name not specified.");
-  if (output_file.empty()) throw std::runtime_error("Output file not specified.");
+  if (output_file.empty())
+    throw std::runtime_error("Output file not specified.");
 
-  
   std::cout << "Config:\n" << parsed_cfg.dump(2) << std::endl;
   std::cout << "Input File: " << input_file << std::endl;
   std::cout << "Tree Name: " << tree_name << std::endl;
   std::cout << "Output File: " << output_file << std::endl;
-  TChain *theChain = new TChain(tree_name.c_str());
+  TChain* theChain = new TChain(tree_name.c_str());
   theChain->Add(input_file.c_str());
   TTreeReader tp_tree_reader(theChain);
   TTreeReaderValue<uint> event_reader(tp_tree_reader, "event");
@@ -61,7 +62,8 @@ main(int argc, char** argv) {
   // TriggerActivityMakerMTCA ta_maker(1, 10);
   nlohmann::json ta_cfg = parsed_cfg["TAMaker"];
   if (ta_cfg["tool_type"] != "cluster") {
-    throw std::runtime_error("Only TriggerActivityMakerCluster is supported in this example.");
+    throw std::runtime_error(
+        "Only TriggerActivityMakerCluster is supported in this example.");
   }
   // TriggerActivityMakerCluster ta_maker(32, 23, 11, 727, 2);
   TriggerActivityMakerCluster ta_maker(ta_cfg["config"]);
@@ -90,11 +92,7 @@ main(int argc, char** argv) {
     curr_run = *run_reader;
     if ((curr_event != prev_event) || (curr_subrun != prev_subrun) ||
         (curr_run != prev_run)) {
-      std::sort(tps_in_event.begin(), tps_in_event.end(),
-                [](const TriggerPrimitive& a, const TriggerPrimitive& b) {
-                  return std::tie(a.time_start, a.channel) <
-                         std::tie(b.time_start, b.channel);
-                });
+      std::sort(tps_in_event.begin(), tps_in_event.end());
       for (const TriggerPrimitive& curr_tp : tps_in_event) {
         ta_maker(curr_tp, output_tas);
       }
@@ -116,13 +114,10 @@ main(int argc, char** argv) {
     }
     TriggerPrimitive curr_tp = tp_reader.get();
     if (curr_tp.time_start > 1e10) continue;
+    if (curr_tp.samples_over_threshold < 60) continue;
     tps_in_event.push_back(curr_tp);
   }
-  std::sort(tps_in_event.begin(), tps_in_event.end(),
-            [](const TriggerPrimitive& a, const TriggerPrimitive& b) {
-              return std::tie(a.time_start, a.channel) <
-                     std::tie(b.time_start, b.channel);
-            });
+  std::sort(tps_in_event.begin(), tps_in_event.end());
   for (const TriggerPrimitive& curr_tp : tps_in_event) {
     ta_maker(curr_tp, output_tas);
   }
@@ -140,7 +135,7 @@ main(int argc, char** argv) {
   provenance["input_file"] = input_file;
   provenance["tree_name"] = tree_name;
   TObjString provenance_str = provenance.dump().c_str();
-  provenance_str.Write("provenance",  TObject::kOverwrite);
+  provenance_str.Write("provenance", TObject::kOverwrite);
   fout.Close();
 
   return 0;

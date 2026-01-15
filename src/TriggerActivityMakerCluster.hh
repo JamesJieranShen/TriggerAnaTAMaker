@@ -158,7 +158,7 @@ public:
 
   void operator()(const TriggerPrimitive& input_tp,
                   std::vector<TriggerActivityCluster>& output_ta) override {
-    if (input_tp.time_start > m_tpBuffer.currentTime()) {
+    if (input_tp.time_start + input_tp.samples_to_peak > m_tpBuffer.currentTime()) {
       m_tpBuffer.formClusters(output_ta, m_maxClusterTime, m_maxHitTimeDiff,
                               m_minNhits, m_maxHitDistance, m_minNeighbors);
     }
