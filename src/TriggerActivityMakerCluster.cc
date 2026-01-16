@@ -172,6 +172,8 @@ TPBufferCluster::formClusters(std::vector<TriggerActivityCluster>& output,
     }
     std::sort(cluster_tps.begin(), cluster_tps.end());
     output.push_back(makeTriggerActivity(cluster_tps));
+	if (m_verbosity >= Verbosity::kDebug)
+		std::cout << "  Adding TA: [ " <<  output.back().time_start << ", " << output.back().time_end << " ]" << std::endl;
     output.back().BackTrack(cluster_tps);
   }
 }
@@ -198,10 +200,10 @@ TPBufferCluster::makeTriggerActivity(
   uint32_t wall_tp_count = 0;
   for (const TriggerPrimitive& tp : cluster_tps) {
     activity.time_start =
-        std::min(activity.time_start, static_cast<uint32_t>(tp.time_start));
+        std::min(activity.time_start, static_cast<uint32_t>(peak_time(tp)));
     activity.time_end = std::max(
         activity.time_end,
-        static_cast<uint32_t>(tp.time_start + tp.samples_over_threshold));
+        static_cast<uint32_t>(peak_time(tp)));
     activity.sadc_sum += tp.adc_integral;
     activity.sadc_max_tps = std::max(activity.sadc_max_tps, tp.adc_integral);
     activity.tot_sum += static_cast<float_t>(tp.samples_over_threshold);

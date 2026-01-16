@@ -67,6 +67,7 @@ main(int argc, char** argv) {
   }
   // TriggerActivityMakerCluster ta_maker(32, 23, 11, 727, 2);
   TriggerActivityMakerCluster ta_maker(ta_cfg["config"]);
+  ta_maker.SetVerbosity(ta_cfg["verbosity"]);
 
   TFile fout(output_file.c_str(), "RECREATE");
   TTree out_tree("TriggerActivities", "Trigger Activities");

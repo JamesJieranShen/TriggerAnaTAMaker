@@ -113,7 +113,7 @@ typedef std::priority_queue<TriggerPrimitive, std::vector<TriggerPrimitive>,
     TPPriorityQueueCluster;
 
 struct TPBufferCluster {
-  TPBufferCluster(uint64_t buffer_length) : m_bufLength(buffer_length) {}
+  TPBufferCluster(uint64_t buffer_length, Verbosity verbosity=Verbosity::kInfo) : m_bufLength(buffer_length), m_verbosity(verbosity) {}
 
   size_t size() const { return m_buffer.size(); }
   uint64_t currentTime() const {
@@ -138,6 +138,7 @@ struct TPBufferCluster {
   makeTriggerActivity(const std::vector<TriggerPrimitive>& cluster_tps) const;
 
   uint64_t m_bufLength;
+  Verbosity m_verbosity;
   TPPriorityQueueCluster m_buffer;
 };
 
@@ -158,6 +159,12 @@ public:
 
   void operator()(const TriggerPrimitive& input_tp,
                   std::vector<TriggerActivityCluster>& output_ta) override {
+	if (m_verbosity >= Verbosity::kDebug) {
+	  std::cout <<  "Adding TP: " << input_tp.time_start << " "
+	  				<< input_tp.time_start + input_tp.samples_to_peak << " "
+	  				<< input_tp.time_start + input_tp.samples_over_threshold
+	  				<< std::endl;
+	}
     if (input_tp.time_start + input_tp.samples_to_peak > m_tpBuffer.currentTime()) {
       m_tpBuffer.formClusters(output_ta, m_maxClusterTime, m_maxHitTimeDiff,
                               m_minNhits, m_maxHitDistance, m_minNeighbors);
@@ -172,6 +179,10 @@ public:
                               true);
     }
     m_tpBuffer.clear();
+  }
+  virtual void SetVerbosity(Verbosity _vlevel) override {
+  	TriggerActivityMaker::SetVerbosity(_vlevel);
+	m_tpBuffer.m_verbosity = _vlevel;
   }
 
 private:
