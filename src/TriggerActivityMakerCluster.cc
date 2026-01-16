@@ -78,26 +78,26 @@ filter_by_distance(std::vector<TriggerPrimitive>& cluster_tps,
 
 template <typename T>
 void
-compute_metrics(std::vector<T> vals, float_t& extent_val, float_t& max_val,
-                float_t& mean_val, float_t& std_val) {
+compute_metrics(std::vector<T> vals, float_t& extent_val, float_t& delta_max,
+                float_t& delta_mean, float_t& delta_std) {
   if (vals.size() < 2) {
-    max_val = 0.0f;
-    mean_val = 0.0f;
+    delta_max = 0.0f;
+    delta_mean = 0.0f;
     return;
   }
   std::sort(vals.begin(), vals.end());
   extent_val =
       static_cast<float_t>(vals.back()) - static_cast<float_t>(vals.front());
   float_t sum_deltas = 0;
-  max_val = 0;
+  delta_max = 0;
   for (size_t i = 1; i < vals.size(); ++i) {
     float_t delta = static_cast<float_t>(vals[i] - vals[i - 1]);
     sum_deltas += delta;
-    max_val = std::max(max_val, delta);
+    delta_max = std::max(delta_max, delta);
   }
-  mean_val = compute_mean(sum_deltas, vals.size() - 1);
-  std_val = compute_std(static_cast<double>(sum_deltas * sum_deltas),
-                        static_cast<double>(mean_val), vals.size() - 1);
+  delta_mean = safe_divide(sum_deltas, vals.size() - 1);
+  delta_std = compute_std(static_cast<double>(sum_deltas * sum_deltas),
+                          static_cast<double>(delta_mean), vals.size() - 1);
 }
 
 float_t
@@ -118,7 +118,7 @@ compute_mean_distance(const std::vector<TriggerPrimitive>& tps) {
     total_distance += distance;
     n_pairs += 1;
   }
-  return compute_mean(total_distance, n_pairs);
+  return safe_divide(total_distance, n_pairs);
 }
 
 void
@@ -197,6 +197,7 @@ TPBufferCluster::makeTriggerActivity(
   ys.reserve(cluster_tps.size());
   std::vector<float_t> zs;
   zs.reserve(cluster_tps.size());
+  std::vector<double_t> qs;
   uint32_t wall_tp_count = 0;
   for (const TriggerPrimitive& tp : cluster_tps) {
     activity.time_start =
@@ -205,6 +206,7 @@ TPBufferCluster::makeTriggerActivity(
         activity.time_end,
         static_cast<uint32_t>(peak_time(tp)));
     activity.sadc_sum += tp.adc_integral;
+    qs.push_back(tp.adc_integral);
     activity.sadc_max_tps = std::max(activity.sadc_max_tps, tp.adc_integral);
     activity.tot_sum += static_cast<float_t>(tp.samples_over_threshold);
     activity.tot_max = std::max(
@@ -226,10 +228,7 @@ TPBufferCluster::makeTriggerActivity(
     }
   }
   activity.n_opdets = opdet_sadcs.size();
-  activity.wall_fraction_tps =
-      activity.n_tps == 0
-          ? 0.0
-          : wall_tp_count / static_cast<float_t>(activity.n_tps);
+  activity.wall_fraction_tps = safe_divide(wall_tp_count, activity.n_tps);
   double total_sadc2_opdets = 0.0;
   uint32_t wall_opdet_count = 0;
   float_t wall_sadc_sum = 0.0f;
@@ -249,23 +248,19 @@ TPBufferCluster::makeTriggerActivity(
         std::max(activity.sadc_max_opdets, static_cast<float_t>(sadc));
   }
   activity.wall_fraction_opdets =
-      activity.n_opdets == 0
-          ? 0.0
-          : wall_opdet_count / static_cast<float_t>(activity.n_opdets);
-  activity.wall_fraction_sadc =
-      activity.sadc_sum == 0.0f ? 0.0f : wall_sadc_sum / activity.sadc_sum;
-  activity.sadc_mean_opdets =
-      compute_mean(activity.sadc_sum, activity.n_opdets);
-  activity.sadc_mean_tps = compute_mean(activity.sadc_sum, activity.n_tps);
+      safe_divide(wall_opdet_count, activity.n_opdets);
+  activity.wall_fraction_sadc = safe_divide(wall_sadc_sum, activity.sadc_sum);
+  activity.sadc_mean_opdets = safe_divide(activity.sadc_sum, activity.n_opdets);
+  activity.sadc_mean_tps = safe_divide(activity.sadc_sum, activity.n_tps);
   activity.charge_balance_opdets = compute_charge_balance(
       total_sadc2_opdets, static_cast<double>(activity.sadc_sum),
       activity.n_opdets);
   activity.charge_balance_tps = compute_charge_balance(
       total_sadc2_tps, static_cast<double>(activity.sadc_sum), activity.n_tps);
   activity.tot_mean =
-      compute_mean(activity.tot_sum, static_cast<uint32_t>(activity.n_tps));
+      safe_divide(activity.tot_sum, static_cast<uint32_t>(activity.n_tps));
   activity.peak_mean =
-      compute_mean(activity.peak_sum, static_cast<uint32_t>(activity.n_tps));
+      safe_divide(activity.peak_sum, static_cast<uint32_t>(activity.n_tps));
 
   compute_metrics(times, activity.t_extent, activity.dt_max, activity.dt_mean,
                   activity.dt_std);
@@ -275,5 +270,16 @@ TPBufferCluster::makeTriggerActivity(
                   activity.dy_std);
   compute_metrics(zs, activity.z_extent, activity.dz_max, activity.dz_mean,
                   activity.dz_std);
+  double weights = 0;
+  double y_sum = 0;
+  double z_sum = 0;
+  for (size_t i = 0; i < xs.size(); i++) {
+    if (xs.at(i) > 0) continue; // skip wall PDs
+    weights += qs.at(i);
+    y_sum += qs.at(i) * ys.at(i);
+    z_sum += qs.at(i) * zs.at(i);
+  }
+  activity.reco_y = safe_divide(y_sum, weights, -99999.0f);
+  activity.reco_z = safe_divide(z_sum, weights, -99999.0f);
   return activity;
 }

@@ -44,10 +44,13 @@ struct TriggerActivityCluster : public TriggerActivity {
   float_t dy_max = 0;
   float_t dy_mean = 0;
   float_t dy_std = 0;
+  float_t reco_y = 0;
+
   float_t z_extent = 0;
   float_t dz_max = 0;
   float_t dz_mean = 0;
   float_t dz_std = 0;
+  float_t reco_z = 0;
 
   float_t dr_mean = 0;
 
@@ -88,10 +91,12 @@ struct TriggerActivityCluster : public TriggerActivity {
     tree.Branch((prefix + "dy_max").c_str(), &dy_max);
     tree.Branch((prefix + "dy_mean").c_str(), &dy_mean);
     tree.Branch((prefix + "dy_std").c_str(), &dy_std);
+    tree.Branch((prefix + "reco_y").c_str(), &reco_y);
     tree.Branch((prefix + "z_extent").c_str(), &z_extent);
     tree.Branch((prefix + "dz_max").c_str(), &dz_max);
     tree.Branch((prefix + "dz_mean").c_str(), &dz_mean);
     tree.Branch((prefix + "dz_std").c_str(), &dz_std);
+    tree.Branch((prefix + "reco_z").c_str(), &reco_z);
     tree.Branch((prefix + "dr_mean").c_str(), &dr_mean);
     tree.Branch((prefix + "wall_fraction_opdets").c_str(),
                 &wall_fraction_opdets);
@@ -113,14 +118,11 @@ typedef std::priority_queue<TriggerPrimitive, std::vector<TriggerPrimitive>,
     TPPriorityQueueCluster;
 
 struct TPBufferCluster {
-  TPBufferCluster(uint64_t buffer_length, Verbosity verbosity=Verbosity::kInfo) : m_bufLength(buffer_length), m_verbosity(verbosity) {}
+  TPBufferCluster(uint64_t buffer_length,
+                  Verbosity verbosity = Verbosity::kInfo)
+      : m_bufLength(buffer_length), m_verbosity(verbosity) {}
 
   size_t size() const { return m_buffer.size(); }
-  uint64_t currentTime() const {
-    return m_buffer.empty()
-               ? 0
-               : m_buffer.top().time_start + m_buffer.top().samples_to_peak;
-  }
 
   void clear() {
     TPPriorityQueueCluster empty;
@@ -159,16 +161,14 @@ public:
 
   void operator()(const TriggerPrimitive& input_tp,
                   std::vector<TriggerActivityCluster>& output_ta) override {
-	if (m_verbosity >= Verbosity::kDebug) {
-	  std::cout <<  "Adding TP: " << input_tp.time_start << " "
-	  				<< input_tp.time_start + input_tp.samples_to_peak << " "
-	  				<< input_tp.time_start + input_tp.samples_over_threshold
-	  				<< std::endl;
-	}
-    if (input_tp.time_start + input_tp.samples_to_peak > m_tpBuffer.currentTime()) {
-      m_tpBuffer.formClusters(output_ta, m_maxClusterTime, m_maxHitTimeDiff,
-                              m_minNhits, m_maxHitDistance, m_minNeighbors);
+    if (m_verbosity >= Verbosity::kDebug) {
+      std::cout << "Adding TP: " << input_tp.time_start << " "
+                << input_tp.time_start + input_tp.samples_to_peak << " "
+                << input_tp.time_start + input_tp.samples_over_threshold
+                << std::endl;
     }
+    m_tpBuffer.formClusters(output_ta, m_maxClusterTime, m_maxHitTimeDiff,
+                            m_minNhits, m_maxHitDistance, m_minNeighbors);
     m_tpBuffer.add(input_tp);
   }
   void flush(std::vector<TriggerActivityCluster>& output_ta) override {
@@ -181,8 +181,8 @@ public:
     m_tpBuffer.clear();
   }
   virtual void SetVerbosity(Verbosity _vlevel) override {
-  	TriggerActivityMaker::SetVerbosity(_vlevel);
-	m_tpBuffer.m_verbosity = _vlevel;
+    TriggerActivityMaker::SetVerbosity(_vlevel);
+    m_tpBuffer.m_verbosity = _vlevel;
   }
 
 private:

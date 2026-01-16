@@ -8,8 +8,8 @@ channel_to_opdet(int channel) {
 }
 
 inline float_t
-compute_mean(double sum, uint32_t n) {
-  return n > 0 ? static_cast<float_t>(sum) / n : 0.0f;
+safe_divide(double a, double b, double default_val = 0.0f) {
+  return b == 0 ? a / b : default_val;
 }
 
 inline float_t
