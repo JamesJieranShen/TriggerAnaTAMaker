@@ -70,7 +70,7 @@ main(int argc, char** argv) {
   }
   // TriggerActivityMakerCluster ta_maker(32, 23, 11, 727, 2);
   TriggerActivityMakerCluster ta_maker(ta_cfg["config"]);
-  ta_maker.SetVerbosity(ta_cfg["verbosity"]);
+  ta_maker.SetVerbosity(ta_cfg.value("verbosity", Verbosity::kInfo));
 
   TFile fout(output_file.c_str(), "RECREATE");
   TTree out_tree("TriggerActivities", "Trigger Activities");
@@ -97,6 +97,21 @@ main(int argc, char** argv) {
     if ((curr_event != prev_event) || (curr_subrun != prev_subrun) ||
         (curr_run != prev_run)) {
       std::sort(tps_in_event.begin(), tps_in_event.end());
+      // Fun fact. Did you know TPs can repeat themselves? Because apparently
+      // nobody though about in-window retriggers in a readout window, resulting
+      // in Raw Waveform segments with overlapping timing windows.
+      //
+      // If my calculus is correct, this means that WE HAVE BEEN PRODUCING
+      // DUPLICATED HITS FOR MORE THAN A DECODE.
+      //
+      // FIXME: Remove the lines below when we get better at this.
+      // =====================================================================
+      size_t old_size = tps_in_event.size();
+      tps_in_event.erase(std::unique(tps_in_event.begin(), tps_in_event.end()),
+                         tps_in_event.end());
+      std::cout << "Removed " << (old_size - tps_in_event.size())
+                << " duplicate TPs in the last event." << std::endl;
+      // =====================================================================
       for (const TriggerPrimitive& curr_tp : tps_in_event) {
         ta_maker(curr_tp, output_tas);
       }
@@ -121,7 +136,16 @@ main(int argc, char** argv) {
     if (curr_tp.samples_over_threshold < 60) continue;
     tps_in_event.push_back(curr_tp);
   }
+
   std::sort(tps_in_event.begin(), tps_in_event.end());
+  // FIXME: Remove when TP duplilcation issues is resolved upstream.
+  // =====================================================================
+  size_t old_size = tps_in_event.size();
+  tps_in_event.erase(std::unique(tps_in_event.begin(), tps_in_event.end()),
+                     tps_in_event.end());
+  std::cout << "Removed " << (old_size - tps_in_event.size())
+            << " duplicate TPs in the last event." << std::endl;
+  // =====================================================================
   for (const TriggerPrimitive& curr_tp : tps_in_event) {
     ta_maker(curr_tp, output_tas);
   }
