@@ -271,14 +271,18 @@ TPBufferCluster::makeTriggerActivity(
   compute_metrics(zs, activity.z_extent, activity.dz_max, activity.dz_mean,
                   activity.dz_std);
   double weights = 0;
+  double x_sum = 0;
   double y_sum = 0;
   double z_sum = 0;
   for (size_t i = 0; i < xs.size(); i++) {
-    if (xs.at(i) > 0) continue; // skip wall PDs
+    // if (xs.at(i) > 0) continue; // skip wall PDs
+    // if (xs.at(i) < 0) continue; // skip cathode PDs
     weights += qs.at(i);
+    x_sum += qs.at(i) * xs.at(i);
     y_sum += qs.at(i) * ys.at(i);
     z_sum += qs.at(i) * zs.at(i);
   }
+  activity.reco_x = safe_divide(x_sum, weights, -99999.0f);
   activity.reco_y = safe_divide(y_sum, weights, -99999.0f);
   activity.reco_z = safe_divide(z_sum, weights, -99999.0f);
   return activity;

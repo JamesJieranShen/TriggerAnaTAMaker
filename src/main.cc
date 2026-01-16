@@ -18,11 +18,14 @@ main(int argc, char** argv) {
   CLI::App parser{
       "Toy Trigger Activity Maker, using TriggerAnaTree as an input."};
   std::string input_file, output_file, cfg, tree_name;
+  int n_max = 0;
   parser.add_option("--config", cfg, "JSON Config string or filename.")
       ->required();
   parser.add_option("--input,-i", input_file, "Input TriggerAnaTree file");
   parser.add_option("--tree", tree_name, "Trigger Activity Tree Name");
   parser.add_option("--output,-o", output_file, "Output file");
+  parser.add_option("-n", n_max,
+                    "Maximum number of events to process (0 for all)");
   CLI11_PARSE(parser, argc, argv);
 
   nlohmann::json parsed_cfg;
@@ -87,7 +90,7 @@ main(int argc, char** argv) {
   int curr_subrun = -99999;
   int curr_run = -99999;
   std::vector<TriggerPrimitive> tps_in_event;
-  while (tp_tree_reader.Next()) {
+  while (tp_tree_reader.Next() && (n_max == 0 || event_counter < n_max)) {
     curr_event = *event_reader;
     curr_subrun = *subrun_reader;
     curr_run = *run_reader;
@@ -98,10 +101,10 @@ main(int argc, char** argv) {
         ta_maker(curr_tp, output_tas);
       }
       ta_maker.flush(output_tas);
-      std::cout << "Writing TAs for event " << event_counter << std::endl;
+      std::cout << "Writing TAs for event " << event_counter << "\n";
       // std::cout << "Current Event: " << curr_event << std::endl;
-      std::cout << "  Number of TPs: " << tps_in_event.size() << std::endl;
-      std::cout << "  Number of TAs: " << output_tas.size() << std::endl;
+      std::cout << "  Number of TPs: " << tps_in_event.size() << "\n";
+      std::cout << "  Number of TAs: " << output_tas.size() << "\n";
       for (const auto& ta : output_tas) {
         ta_buf = ta;
         out_tree.Fill();
@@ -123,8 +126,8 @@ main(int argc, char** argv) {
     ta_maker(curr_tp, output_tas);
   }
   ta_maker.flush(output_tas);
-  std::cout << "Writing TAs for event " << event_counter << std::endl;
-  std::cout << "  Number of TPs: " << tps_in_event.size() << std::endl;
+  std::cout << "Writing TAs for event " << event_counter << "\n";
+  std::cout << "  Number of TPs: " << tps_in_event.size() << "\n";
   std::cout << "  Number of TAs: " << output_tas.size() << std::endl;
   for (const auto& ta : output_tas) {
     ta_buf = ta;

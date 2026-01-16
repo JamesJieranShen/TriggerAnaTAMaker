@@ -39,6 +39,7 @@ struct TriggerActivityCluster : public TriggerActivity {
   float_t dx_max = 0;
   float_t dx_mean = 0;
   float_t dx_std = 0;
+  float_t reco_x = 0;
 
   float_t y_extent = 0;
   float_t dy_max = 0;
@@ -87,6 +88,7 @@ struct TriggerActivityCluster : public TriggerActivity {
     tree.Branch((prefix + "dx_max").c_str(), &dx_max);
     tree.Branch((prefix + "dx_mean").c_str(), &dx_mean);
     tree.Branch((prefix + "dx_std").c_str(), &dx_std);
+    tree.Branch((prefix + "reco_x").c_str(), &reco_x);
     tree.Branch((prefix + "y_extent").c_str(), &y_extent);
     tree.Branch((prefix + "dy_max").c_str(), &dy_max);
     tree.Branch((prefix + "dy_mean").c_str(), &dy_mean);
