@@ -46,6 +46,11 @@ filter_by_distance(std::vector<TriggerPrimitive>& cluster_tps,
                    float_t max_hit_distance, int min_neighbors) {
   // removes tps from the cluster_tps list if there are no neighbors within
   // max_hit_distance.
+
+  // do nothing if parameters are invalid
+  if (max_hit_distance <= 0.0f || min_neighbors <= 0) {
+    return {};
+  }
   const PMTInfo& pmt_info = PMTInfo::Instance();
   std::vector<TriggerPrimitive> filtered_tps;
   std::vector<TriggerPrimitive> removed_tps;
