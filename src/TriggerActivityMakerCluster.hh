@@ -107,11 +107,10 @@ struct TriggerActivityCluster : public TriggerActivity {
   }
 };
 
-// Pablo's Cluster uses peak time, I think. Let's stick with time_start for now
+// Sort everything by PeakTime
 struct TPCompareCluster {
   bool operator()(TriggerPrimitive const& a, TriggerPrimitive const& b) const {
-    return (a.time_start + a.samples_to_peak) >
-           (b.time_start + b.samples_to_peak);
+    return (a.PeakTime()) > (b.PeakTime());
   }
 };
 
@@ -165,8 +164,7 @@ public:
                   std::vector<TriggerActivityCluster>& output_ta) override {
     if (m_verbosity >= Verbosity::kDebug) {
       std::cout << "Adding TP: " << input_tp.time_start << " "
-                << input_tp.time_start + input_tp.samples_to_peak << " "
-                << input_tp.time_start + input_tp.samples_over_threshold
+                << input_tp.PeakTime() << " " << input_tp.EndTime()
                 << std::endl;
     }
     m_tpBuffer.formClusters(output_ta, m_maxClusterTime, m_maxHitTimeDiff,

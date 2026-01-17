@@ -1,14 +1,8 @@
 #include "TriggerActivityMakerCluster.hh"
 
-#include "PMTINFO_1x8x14.hh"
 #include "utils.hh"
 
 #include <TVector3.h>
-
-inline uint64_t
-peak_time(const TriggerPrimitive& tp) {
-  return tp.time_start + tp.samples_to_peak;
-}
 
 // assumes tps are sorted by peak time.
 std::vector<std::vector<TriggerPrimitive>>
@@ -23,12 +17,12 @@ split_on_timediff(const std::vector<TriggerPrimitive>& tps,
   for (size_t i = 1; i < tps.size(); ++i) {
     if (
         // The current TP is too late, exceeding max time diff
-        (static_cast<int64_t>(peak_time(tps.at(i)) - peak_time(tps.at(i - 1))) >
+        (static_cast<int64_t>(tps.at(i).PeakTime() - tps.at(i - 1).PeakTime()) >
          max_hit_time_diff) ||
         // The current cluster will exceed max cluster time with the addition of
         // the current TP
-        (static_cast<int64_t>(peak_time(tps.at(i)) -
-                              peak_time(current_cluster.front())) >
+        (static_cast<int64_t>(tps.at(i).PeakTime() -
+                              current_cluster.front().PeakTime()) >
          max_cluster_time)) {
       clusters.push_back(current_cluster);
       current_cluster.clear();
@@ -51,19 +45,15 @@ filter_by_distance(std::vector<TriggerPrimitive>& cluster_tps,
   if (max_hit_distance <= 0.0f || min_neighbors <= 0) {
     return {};
   }
-  const PMTInfo& pmt_info = PMTInfo::Instance();
   std::vector<TriggerPrimitive> filtered_tps;
   std::vector<TriggerPrimitive> removed_tps;
   for (const TriggerPrimitive& curr_tp : cluster_tps) {
-    int curr_opdet_id = channel_to_opdet(curr_tp.channel);
-    TVector3 curr_pos = pmt_info.GetPositionTVec(curr_opdet_id);
+    TVector3 curr_pos = curr_tp.OpDetPosition();
     int neighbor_count = 0;
 
     for (const TriggerPrimitive& other_tp : cluster_tps) {
       if (curr_tp == other_tp) continue;
-      int other_opdet_id = channel_to_opdet(other_tp.channel);
-      float_t distance2 =
-          (curr_pos - pmt_info.GetPositionTVec(other_opdet_id)).Mag2();
+      float_t distance2 = (curr_pos - other_tp.OpDetPosition()).Mag2();
       if (distance2 <= max_hit_distance * max_hit_distance) {
         neighbor_count++;
         if (neighbor_count >= min_neighbors) {
@@ -110,16 +100,13 @@ compute_mean_distance(const std::vector<TriggerPrimitive>& tps) {
   if (tps.size() < 2) {
     return 0.0f;
   }
-  const PMTInfo& pmt_info = PMTInfo::Instance();
   size_t n_pairs = 0;
   double total_distance = 0.0;
   for (size_t i = 1; i < tps.size(); ++i) {
     const TriggerPrimitive& prev_tp = tps.at(i - 1);
     const TriggerPrimitive& curr_tp = tps.at(i);
     float_t distance =
-        (pmt_info.GetPositionTVec(channel_to_opdet(curr_tp.channel)) -
-         pmt_info.GetPositionTVec(channel_to_opdet(prev_tp.channel)))
-            .Mag();
+        (curr_tp.OpDetPosition() - prev_tp.OpDetPosition()).Mag();
     total_distance += distance;
     n_pairs += 1;
   }
@@ -154,7 +141,7 @@ TPBufferCluster::formClusters(std::vector<TriggerActivityCluster>& output,
   }
   std::sort(tps.begin(), tps.end(),
             [](const TriggerPrimitive& a, const TriggerPrimitive& b) {
-              return peak_time(a) < peak_time(b);
+              return a.PeakTime() < b.PeakTime();
             });
   std::vector<std::vector<TriggerPrimitive>> time_clusters =
       split_on_timediff(tps, max_cluster_time, max_hit_time_diff);
@@ -177,8 +164,9 @@ TPBufferCluster::formClusters(std::vector<TriggerActivityCluster>& output,
     }
     std::sort(cluster_tps.begin(), cluster_tps.end());
     output.push_back(makeTriggerActivity(cluster_tps));
-	if (m_verbosity >= Verbosity::kDebug)
-		std::cout << "  Adding TA: [ " <<  output.back().time_start << ", " << output.back().time_end << " ]" << std::endl;
+    if (m_verbosity >= Verbosity::kDebug)
+      std::cout << "  Adding TA: [ " << output.back().time_start << ", "
+                << output.back().time_end << " ]" << std::endl;
     output.back().BackTrack(cluster_tps);
   }
 }
@@ -191,7 +179,8 @@ TPBufferCluster::makeTriggerActivity(
   activity.dr_mean = compute_mean_distance(cluster_tps);
   std::map<uint32_t, int64_t> opdet_sadcs;
   std::map<uint32_t, uint32_t> opdet_ntps;
-  PMTInfo& pmt_info = PMTInfo::Instance();
+  std::map<uint32_t, bool> opdet_onCathode;
+  // PMTInfo& pmt_info = PMTInfo::Instance();
 
   double total_sadc2_tps = 0.0;
   std::vector<uint64_t> times;
@@ -206,10 +195,9 @@ TPBufferCluster::makeTriggerActivity(
   uint32_t wall_tp_count = 0;
   for (const TriggerPrimitive& tp : cluster_tps) {
     activity.time_start =
-        std::min(activity.time_start, static_cast<uint32_t>(peak_time(tp)));
-    activity.time_end = std::max(
-        activity.time_end,
-        static_cast<uint32_t>(peak_time(tp)));
+        std::min(activity.time_start, static_cast<uint32_t>(tp.PeakTime()));
+    activity.time_end =
+        std::max(activity.time_end, static_cast<uint32_t>(tp.PeakTime()));
     activity.sadc_sum += tp.adc_integral;
     qs.push_back(tp.adc_integral);
     activity.sadc_max_tps = std::max(activity.sadc_max_tps, tp.adc_integral);
@@ -221,14 +209,16 @@ TPBufferCluster::makeTriggerActivity(
         std::max(activity.peak_max, static_cast<uint32_t>(tp.adc_peak));
     total_sadc2_tps += static_cast<double>(tp.adc_integral) *
                        static_cast<double>(tp.adc_integral);
-    opdet_ntps[channel_to_opdet(tp.channel)] += 1;
-    opdet_sadcs[channel_to_opdet(tp.channel)] += tp.adc_integral;
+    uint32_t opdet_id = tp.OpDetID();
+    opdet_ntps[opdet_id] += 1;
+    opdet_sadcs[opdet_id] += tp.adc_integral;
+    opdet_onCathode[opdet_id] = tp.OnCathode();
     times.push_back(tp.time_start);
-    TVector3 pos = pmt_info.GetPositionTVec(channel_to_opdet(tp.channel));
+    TVector3 pos = tp.OpDetPosition();
     xs.push_back(pos.X());
     ys.push_back(pos.Y());
     zs.push_back(pos.Z());
-    if (pmt_info.is_side_opdet(channel_to_opdet(tp.channel))) {
+    if (!tp.OnCathode()) {
       wall_tp_count += 1;
     }
   }
@@ -245,7 +235,7 @@ TPBufferCluster::makeTriggerActivity(
   for (auto const& [opdet_id, sadc] : opdet_sadcs) {
     double sadc_d = static_cast<double>(sadc);
     total_sadc2_opdets += sadc_d * sadc_d;
-    if (pmt_info.is_side_opdet(opdet_id)) {
+    if (!opdet_onCathode.at(opdet_id)) {
       wall_opdet_count += 1;
       wall_sadc_sum += static_cast<float_t>(sadc);
     }

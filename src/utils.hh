@@ -2,11 +2,6 @@
 #include <cmath>
 #include <cstdint>
 
-inline int
-channel_to_opdet(int channel) {
-  return channel / 10;
-}
-
 inline float_t
 safe_divide(double a, double b, double default_val = 0.0f) {
   return b == 0 ? default_val : a / b;

@@ -1,7 +1,9 @@
 #include <TTreeReader.h>
+#include <TVector3.h>
 #include <cstdint>
 
 #pragma once
+// TODO: THis is very much meant for the PDS. Fix this for TPC if needed.
 struct TriggerPrimitive {
   uint8_t version;
   uint8_t flag;
@@ -30,6 +32,32 @@ struct TriggerPrimitive {
   int bt_mctruth_block_id;
   std::string bt_mctruth_gen_name;
 
+  // NOTE: Obviously incorrect for TPC.
+  static constexpr uint32_t SAMPLING_RATE_IN_DTS = 1;
+
+  TVector3 OpDetPosition() const noexcept {
+    return TVector3(OpDetX, OpdetY, OpDetZ);
+  }
+
+  TVector3 BackTrackPosition() const noexcept {
+    return TVector3(bt_x, bt_y, bt_z);
+  }
+
+  // NOTE: hack, but works ok?
+  bool OnCathode() const noexcept { return OpDetX < 0.0; }
+
+  // NOTE: also a hack. But should work across all current geometires.
+  uint32_t OpDetID() const noexcept { return channel / 10; }
+
+  uint64_t PeakTime() const noexcept {
+    return time_start +
+           SAMPLING_RATE_IN_DTS * static_cast<uint64_t>(samples_to_peak);
+  }
+
+  uint32_t EndTime() const noexcept {
+    return time_start +
+           SAMPLING_RATE_IN_DTS * static_cast<uint64_t>(samples_over_threshold);
+  }
   bool operator==(const TriggerPrimitive& other) const noexcept {
     return std::tie(version, flag, detid, channel, samples_over_threshold,
                     time_start, samples_to_peak, adc_integral, adc_peak) ==
@@ -42,10 +70,10 @@ struct TriggerPrimitive {
     return !(*this == other);
   }
 
+  // Sorting via PeakTime at the moment.
   bool operator<(const TriggerPrimitive& other) const noexcept {
-    return std::make_tuple(time_start + samples_to_peak, channel) <
-           std::make_tuple(other.time_start + other.samples_to_peak,
-                           other.channel);
+    return std::make_tuple(PeakTime(), channel) <
+           std::make_tuple(other.PeakTime(), other.channel);
   }
 
   bool operator>(const TriggerPrimitive& other) const noexcept {

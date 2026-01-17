@@ -133,7 +133,8 @@ main(int argc, char** argv) {
     }
     TriggerPrimitive curr_tp = tp_reader.get();
     if (curr_tp.time_start > 1e10) continue;
-    if (curr_tp.samples_over_threshold < 60) continue;
+    if (curr_tp.OpDetX > 0) continue;
+    // if (curr_tp.samples_over_threshold < 60) continue;
     tps_in_event.push_back(curr_tp);
   }
 
