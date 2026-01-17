@@ -14,6 +14,10 @@ struct TriggerPrimitive {
   uint32_t adc_integral;
   uint16_t adc_peak;
 
+  double OpDetX;
+  double OpdetY;
+  double OpDetZ;
+
   int bt_primary_track_id;
   double bt_primary_track_numelectron_frac;
   double bt_primary_track_energy_frac;
@@ -40,7 +44,8 @@ struct TriggerPrimitive {
 
   bool operator<(const TriggerPrimitive& other) const noexcept {
     return std::make_tuple(time_start + samples_to_peak, channel) <
-           std::make_tuple(other.time_start + other.samples_to_peak, other.channel);
+           std::make_tuple(other.time_start + other.samples_to_peak,
+                           other.channel);
   }
 
   bool operator>(const TriggerPrimitive& other) const noexcept {
@@ -66,6 +71,10 @@ struct TriggerPrimitiveReader {
   TTreeReaderValue<uint32_t> adc_integral;
   TTreeReaderValue<uint16_t> adc_peak;
 
+  TTreeReaderValue<float> OpDetX;
+  TTreeReaderValue<float> OpdetY;
+  TTreeReaderValue<float> OpDetZ;
+
   TTreeReaderValue<int> bt_primary_track_id;
   TTreeReaderValue<double> bt_primary_track_numelectron_frac;
   TTreeReaderValue<double> bt_primary_track_energy_frac;
@@ -89,6 +98,8 @@ struct TriggerPrimitiveReader {
         time_start(reader, "time_start"),
         samples_to_peak(reader, "samples_to_peak"),
         adc_integral(reader, "adc_integral"), adc_peak(reader, "adc_peak"),
+        OpDetX(reader, "OpDetX"), OpdetY(reader, "OpDetY"),
+        OpDetZ(reader, "OpDetZ"),
         bt_primary_track_id(reader, "bt_primary_track_id"),
         bt_primary_track_numelectron_frac(reader,
                                           "bt_primary_track_numelectron_frac"),
@@ -114,6 +125,9 @@ struct TriggerPrimitiveReader {
         .samples_to_peak = *samples_to_peak,
         .adc_integral = *adc_integral,
         .adc_peak = *adc_peak,
+        .OpDetX = *OpDetX,
+        .OpdetY = *OpdetY,
+        .OpDetZ = *OpDetZ,
         .bt_primary_track_id = *bt_primary_track_id,
         .bt_primary_track_numelectron_frac = *bt_primary_track_numelectron_frac,
         .bt_primary_track_energy_frac = *bt_primary_track_energy_frac,
