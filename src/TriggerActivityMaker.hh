@@ -1,13 +1,13 @@
 #pragma once
-#include "TriggerPrimitive.hh"
 #include "TriggerActivity.hh"
+#include "TriggerPrimitive.hh"
 #include "Verbosity.hh"
+
 #include <vector>
 
-using Verbosity = dunetrigger::Verbosity; 
+using Verbosity = dunetrigger::Verbosity;
 
-template<typename T>
-class TriggerActivityMaker {
+template <typename T> class TriggerActivityMaker {
 public:
   virtual ~TriggerActivityMaker() = default;
   virtual void operator()(const TriggerPrimitive& input_tp,
@@ -17,6 +17,7 @@ public:
   std::vector<T> get_empty_vector() { return std::vector<T>{}; }
   T get_empty_activity() { return T{}; }
   virtual void SetVerbosity(Verbosity _vlevel) { m_verbosity = _vlevel; }
+
 protected:
   Verbosity m_verbosity = Verbosity::kInfo;
 };

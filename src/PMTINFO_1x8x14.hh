@@ -129,4 +129,3 @@ public:
 protected:
   std::map<int, StdVec3_t> m_pmtinfo;
 };
-

@@ -13,7 +13,6 @@ compute_metrics(double sum2, double sum, int n, uint32_t& nhits, float_t& sadc,
       adc_mean > 0.0f ? static_cast<float_t>(adc_std) / adc_mean : 0.0f;
 }
 
-
 void
 TPBufferMTCA::add(const TriggerPrimitive& tp) {
   m_currentTime = tp.time_start;

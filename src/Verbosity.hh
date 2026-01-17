@@ -1,12 +1,12 @@
 #pragma once
 namespace dunetrigger {
-	enum Verbosity {
-	  // these would all implicitly have these values
-	  // but it's best to explicitly define things
-	  // for anyone in the future looking
-	  kQuiet = 0,
-	  kInfo = 1,
-	  kDebug = 2,
-	  kVerbose = 3
-	};
+enum Verbosity {
+  // these would all implicitly have these values
+  // but it's best to explicitly define things
+  // for anyone in the future looking
+  kQuiet = 0,
+  kInfo = 1,
+  kDebug = 2,
+  kVerbose = 3
+};
 }
