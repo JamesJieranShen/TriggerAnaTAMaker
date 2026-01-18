@@ -17,13 +17,39 @@ split_on_timediff(const std::vector<TriggerPrimitive>& tps,
   for (size_t i = 1; i < tps.size(); ++i) {
     if (
         // The current TP is too late, exceeding max time diff
-        (static_cast<int64_t>(tps.at(i).PeakTime() - tps.at(i - 1).PeakTime()) >
+        (static_cast<int64_t>(tps.at(i).PeakTime() -
+                              current_cluster.back().PeakTime()) >
          max_hit_time_diff) ||
         // The current cluster will exceed max cluster time with the addition of
         // the current TP
         (static_cast<int64_t>(tps.at(i).PeakTime() -
                               current_cluster.front().PeakTime()) >
          max_cluster_time)) {
+      clusters.push_back(current_cluster);
+      current_cluster.clear();
+    }
+    current_cluster.push_back(tps.at(i));
+  }
+  if (!current_cluster.empty()) {
+    clusters.push_back(current_cluster);
+  }
+  return clusters;
+}
+
+// assumes tps are sorted by peak time.
+std::vector<std::vector<TriggerPrimitive>>
+split_on_maxtime(const std::vector<TriggerPrimitive>& tps,
+                 int64_t max_cluster_time) {
+  std::vector<std::vector<TriggerPrimitive>> clusters;
+  if (tps.empty()) {
+    return clusters;
+  }
+  std::vector<TriggerPrimitive> current_cluster;
+  current_cluster.push_back(tps.at(0));
+  for (size_t i = 1; i < tps.size(); ++i) {
+    if (static_cast<int64_t>(tps.at(i).PeakTime() -
+                             current_cluster.front().PeakTime()) >
+        max_cluster_time) {
       clusters.push_back(current_cluster);
       current_cluster.clear();
     }
@@ -144,7 +170,11 @@ TPBufferCluster::formClusters(std::vector<TriggerActivityCluster>& output,
               return a.PeakTime() < b.PeakTime();
             });
   std::vector<std::vector<TriggerPrimitive>> time_clusters =
+      // Pablo Style. No Cluster merging between windows.
+      // split_on_maxtime(tps, max_cluster_time);
+      // --------
       split_on_timediff(tps, max_cluster_time, max_hit_time_diff);
+      // --------
   if (!last_call) {
     // keep the last cluster in the buffer to be processed with future tps.
     std::vector<TriggerPrimitive> last_cluster = time_clusters.back();
@@ -158,6 +188,25 @@ TPBufferCluster::formClusters(std::vector<TriggerActivityCluster>& output,
     if (cluster_tps.size() < static_cast<size_t>(min_nhits)) {
       continue;
     }
+    // Pablo Style:
+    // std::vector<std::vector<TriggerPrimitive>> subclusters =
+    //     split_on_timediff(cluster_tps, max_cluster_time, max_hit_time_diff);
+    // for (std::vector<TriggerPrimitive>& subcluster_tps : subclusters) {
+    //   if (subcluster_tps.size() < static_cast<size_t>(min_nhits)) {
+    //     continue;
+    //   }
+    //   filter_by_distance(subcluster_tps, max_hit_distance, min_neighbors);
+    //   if (subcluster_tps.size() < static_cast<size_t>(min_nhits)) {
+    //     continue;
+    //   }
+    //   std::sort(subcluster_tps.begin(), subcluster_tps.end());
+    //   output.push_back(makeTriggerActivity(subcluster_tps));
+    //   if (m_verbosity >= Verbosity::kDebug)
+    //     std::cout << "  Adding TA: [ " << output.back().time_start << ", "
+    //               << output.back().time_end << " ]" << std::endl;
+    //   output.back().BackTrack(subcluster_tps);
+    // }
+    // --------------------
     filter_by_distance(cluster_tps, max_hit_distance, min_neighbors);
     if (cluster_tps.size() < static_cast<size_t>(min_nhits)) {
       continue;
@@ -168,6 +217,7 @@ TPBufferCluster::formClusters(std::vector<TriggerActivityCluster>& output,
       std::cout << "  Adding TA: [ " << output.back().time_start << ", "
                 << output.back().time_end << " ]" << std::endl;
     output.back().BackTrack(cluster_tps);
+    // --------------------
   }
 }
 
@@ -281,4 +331,78 @@ TPBufferCluster::makeTriggerActivity(
   activity.reco_y = safe_divide(y_sum, weights, -99999.0f);
   activity.reco_z = safe_divide(z_sum, weights, -99999.0f);
   return activity;
+}
+
+TriggerActivityMakerCluster::TriggerActivityMakerCluster(
+    const nlohmann::json& cfg)
+    : m_tpBuffer(6250), m_maxClusterTime(cfg["max_cluster_time"]),
+      m_maxHitTimeDiff(cfg["max_hit_time_diff"]), m_minNhits(cfg["min_nhits"]),
+      m_maxHitDistance(cfg["max_hit_distance"]),
+      m_minNeighbors(cfg.value("min_neighbors", 1)) {
+  if (cfg.contains("filter_rules")) {
+    const nlohmann::json& filter_cfg = cfg["filter_rules"];
+    if (filter_cfg.contains("min_width")) {
+      m_tpMinWidth = filter_cfg["min_width"];
+      std::cout << "TP min width set to " << m_tpMinWidth << " from config."
+                << std::endl;
+    }
+    if (filter_cfg.contains("min_sadc")) {
+      m_tpMinSADC = filter_cfg["min_sadc"];
+      std::cout << "TP min SADC set to " << m_tpMinSADC << " from config."
+                << std::endl;
+    }
+    if (filter_cfg.contains("include_wall_PDs")) {
+
+      m_tpIncludeWallPDs = filter_cfg["include_wall_PDs"];
+      std::cout << "TP include wall PDs set to " << m_tpIncludeWallPDs
+                << " from config." << std::endl;
+    }
+    if (filter_cfg.contains("include_cathode_PDs")) {
+      m_tpIncludeCathodePDs = !filter_cfg["include_cathode_PDs"];
+      std::cout << "TP include cathode PDs set to " << m_tpIncludeCathodePDs
+                << " from config." << std::endl;
+    }
+  }
+}
+
+void
+TriggerActivityMakerCluster::operator()(
+    const TriggerPrimitive& input_tp,
+    std::vector<TriggerActivityCluster>& output_ta) {
+  if (input_tp.samples_over_threshold < m_tpMinWidth) {
+    if (m_verbosity >= Verbosity::kDebug) {
+      std::cout << "  Skipping TP due to width: "
+                << input_tp.samples_over_threshold << " < " << m_tpMinWidth
+                << std::endl;
+    }
+    return;
+  }
+  if (input_tp.adc_integral < m_tpMinSADC) {
+    if (m_verbosity >= Verbosity::kDebug) {
+      std::cout << "  Skipping TP due to SADC: " << input_tp.adc_integral
+                << " < " << m_tpMinSADC << std::endl;
+    }
+    return;
+  }
+  if (!m_tpIncludeWallPDs && input_tp.OnWall()) {
+    if (m_verbosity >= Verbosity::kDebug) {
+      std::cout << "  Skipping TP on wall PD: " << input_tp.OpDetID()
+                << std::endl;
+    }
+    return;
+  }
+  if (!m_tpIncludeCathodePDs && input_tp.OnCathode()) {
+    if (m_verbosity >= Verbosity::kDebug) {
+      std::cout << "  Skipping TP on cathode PD: " << input_tp.OpDetID()
+                << std::endl;
+    }
+    return;
+  }
+  if (m_verbosity >= Verbosity::kDebug) {
+    std::cout << "Adding TP: " << input_tp.time_start << " "
+              << input_tp.PeakTime() << " " << input_tp.EndTime() << std::endl;
+  }
+  m_tpBuffer.formClusters(output_ta, m_maxClusterTime, m_maxHitTimeDiff,
+                          m_minNhits, m_maxHitDistance, m_minNeighbors);
+  m_tpBuffer.add(input_tp);
 }

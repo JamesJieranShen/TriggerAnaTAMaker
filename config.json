@@ -4,12 +4,17 @@
   "output": "test.root",
   "TAMaker": {
     "tool_type": "cluster",
+    "verbosity": 1,
     "config": {
-      "max_cluster_time": 32,
-      "max_hit_time_diff": 23,
-      "min_nhits": 5,
-      "max_hit_distance": 727,
-      "min_neighbors": 2
+      "max_cluster_time": 15,
+      "max_hit_time_diff": 10,
+      "min_nhits": 4,
+      "max_hit_distance": 500,
+      "min_neighbors": 2,
+      "filter_rules": {
+        "include_wall_PDs" : false,
+        "min_width": 65
+      }
     }
   }
 }

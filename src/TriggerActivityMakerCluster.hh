@@ -148,29 +148,11 @@ struct TPBufferCluster {
 class TriggerActivityMakerCluster
     : public TriggerActivityMaker<TriggerActivityCluster> {
 public:
-  TriggerActivityMakerCluster(int64_t max_cluster_time,
-                              int64_t max_hit_time_diff, int64_t min_nhits,
-                              float_t max_hit_distance,
-                              int64_t min_neighbors = 1)
-      : m_tpBuffer(6250), m_maxClusterTime(max_cluster_time),
-        m_maxHitTimeDiff(max_hit_time_diff), m_minNhits(min_nhits),
-        m_maxHitDistance(max_hit_distance), m_minNeighbors(min_neighbors) {}
-  TriggerActivityMakerCluster(const nlohmann::json& j)
-      : TriggerActivityMakerCluster(
-            j["max_cluster_time"], j["max_hit_time_diff"], j["min_nhits"],
-            j["max_hit_distance"], j.value("min_neighbors", 1)) {}
+  TriggerActivityMakerCluster(const nlohmann::json& cfg);
 
   void operator()(const TriggerPrimitive& input_tp,
-                  std::vector<TriggerActivityCluster>& output_ta) override {
-    if (m_verbosity >= Verbosity::kDebug) {
-      std::cout << "Adding TP: " << input_tp.time_start << " "
-                << input_tp.PeakTime() << " " << input_tp.EndTime()
-                << std::endl;
-    }
-    m_tpBuffer.formClusters(output_ta, m_maxClusterTime, m_maxHitTimeDiff,
-                            m_minNhits, m_maxHitDistance, m_minNeighbors);
-    m_tpBuffer.add(input_tp);
-  }
+                  std::vector<TriggerActivityCluster>& output_ta) override;
+
   void flush(std::vector<TriggerActivityCluster>& output_ta) override {
     if (m_tpBuffer.size() > 0) {
       // last call, flush everything
@@ -180,16 +162,22 @@ public:
     }
     m_tpBuffer.clear();
   }
-  virtual void SetVerbosity(Verbosity _vlevel) override {
-    TriggerActivityMaker::SetVerbosity(_vlevel);
-    m_tpBuffer.m_verbosity = _vlevel;
+
+  virtual void SetVerbosity(Verbosity _loglevel) override {
+    TriggerActivityMaker::SetVerbosity(_loglevel);
+    m_tpBuffer.m_verbosity = _loglevel;
   }
 
-private:
+protected:
   TPBufferCluster m_tpBuffer;
   int64_t m_maxClusterTime;
   int64_t m_maxHitTimeDiff;
   int64_t m_minNhits;
   float_t m_maxHitDistance;
   int64_t m_minNeighbors;
+
+  uint64_t m_tpMinWidth = std::numeric_limits<uint64_t>::min();
+  uint64_t m_tpMinSADC = std::numeric_limits<uint64_t>::min();
+  bool m_tpIncludeWallPDs = true;
+  bool m_tpIncludeCathodePDs = true;
 };

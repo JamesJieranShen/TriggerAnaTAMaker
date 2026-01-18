@@ -68,7 +68,6 @@ main(int argc, char** argv) {
     throw std::runtime_error(
         "Only TriggerActivityMakerCluster is supported in this example.");
   }
-  // TriggerActivityMakerCluster ta_maker(32, 23, 11, 727, 2);
   TriggerActivityMakerCluster ta_maker(ta_cfg["config"]);
   ta_maker.SetVerbosity(ta_cfg.value("verbosity", Verbosity::kInfo));
 
@@ -117,7 +116,6 @@ main(int argc, char** argv) {
       }
       ta_maker.flush(output_tas);
       std::cout << "Writing TAs for event " << event_counter << "\n";
-      // std::cout << "Current Event: " << curr_event << std::endl;
       std::cout << "  Number of TPs: " << tps_in_event.size() << "\n";
       std::cout << "  Number of TAs: " << output_tas.size() << "\n";
       for (const auto& ta : output_tas) {
@@ -132,9 +130,8 @@ main(int argc, char** argv) {
       prev_run = curr_run;
     }
     TriggerPrimitive curr_tp = tp_reader.get();
+    // Filter out TPs with negative timestamps from the simulation. We should probably figure out what to do at some point.
     if (curr_tp.time_start > 1e10) continue;
-    if (curr_tp.OpDetX > 0) continue;
-    // if (curr_tp.samples_over_threshold < 60) continue;
     tps_in_event.push_back(curr_tp);
   }
 

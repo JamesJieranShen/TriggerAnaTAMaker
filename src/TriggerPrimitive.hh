@@ -45,6 +45,7 @@ struct TriggerPrimitive {
 
   // NOTE: hack, but works ok?
   bool OnCathode() const noexcept { return OpDetX < 0.0; }
+  bool OnWall() const noexcept { return OpDetX >= 0.0; }
 
   // NOTE: also a hack. But should work across all current geometires.
   uint32_t OpDetID() const noexcept { return channel / 10; }
